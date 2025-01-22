@@ -199,24 +199,6 @@ def downloader():
         save_video(playlist, base, headers, path, name)
         break
 
-def main():
-    threads = []
-    print("q --quit")
-    print("a --add another download")
-    while True:
-        choice = input("Choose option: ").strip()
-        if choice == "q":
-            print("Exiting program...")
-            for thread in threads:
-                thread.join()
-            break
-
-        elif choice == "a":
-            assignment = threading.Thread(target=downloader)
-            threads.append(assignment)
-            assignment.start()
-
-    input("All finished --press any key to exit")
 
 if __name__ == "__main__":
     try:
