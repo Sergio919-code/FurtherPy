@@ -107,10 +107,6 @@ def save_video(txt:str , base: str , headers: dict , path: str , name: str):
     not_playlist = txt.split("\n")
     playlist = [(base + "/" + url) for url in not_playlist if "seg" in url]
 
-    with open("debug.txt" , "w") as f:###debug
-        for item in playlist:
-            f.write(item + "\n")
-    ###
     def get_ts(url, headers):
         global session
         trials = 1
@@ -133,7 +129,7 @@ def save_video(txt:str , base: str , headers: dict , path: str , name: str):
     open(path , "wb").close()
     
     with open(path, "ab") as video:
-        for url in tqdm(playlist, desc=name, unit="B", unit_scale=True, unit_divisor=1024):
+        for url in tqdm(playlist, desc=name):
             ts = get_ts(url, headers)
             if ts:
                 for chunk in ts.iter_content(chunk_size=4096):
