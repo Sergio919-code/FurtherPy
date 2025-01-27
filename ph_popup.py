@@ -47,11 +47,20 @@ class Ui_PopUp(object):
         self.Quality_list.horizontalHeader().setStretchLastSection(True)
         self.Quality_list.verticalHeader().setVisible(False)
 
+        ### my change, add checkbox
+        self.Quality_list.setSelectionMode(QtWidgets.QTableWidget.NoSelection)
+        self.Quality_list.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.Quality_list.setShowGrid(False)
+        for col in range(5):
+            checkbox = QtWidgets.QRadioButton()
+            self.Quality_list.setCellWidget(0, col, checkbox)
+            checkbox.toggled.connect(lambda checked, col=col: self.radio_button_toggled(checked, col))      
+        ###
 
         self.confirm_button = QtWidgets.QPushButton(PopUp)      ### button
         self.confirm_button.setGeometry(QtCore.QRect(190, 180, 121, 31))
         self.confirm_button.setObjectName("confirm_button")
-
+        self.confirm_button.clicked.connect(self.confirmed)
         self.retranslateUi(PopUp)
         QtCore.QMetaObject.connectSlotsByName(PopUp)
 
@@ -62,7 +71,7 @@ class Ui_PopUp(object):
         item = self.Quality_list.verticalHeaderItem(0)
         item.setText(_translate("PopUp", "Quality"))
         item = self.Quality_list.horizontalHeaderItem(0)
-        item.setText(_translate("PopUp", "4k"))
+        item.setText(_translate("PopUp", "2160p"))
         item = self.Quality_list.horizontalHeaderItem(1)
         item.setText(_translate("PopUp", "1080p"))
         item = self.Quality_list.horizontalHeaderItem(2)
@@ -72,7 +81,21 @@ class Ui_PopUp(object):
         item = self.Quality_list.horizontalHeaderItem(4)
         item.setText(_translate("PopUp", "240p"))
         self.confirm_button.setText(_translate("PopUp", "Confirm"))
+    
+    def radio_button_toggled(self, checked:bool, col):
+        col_dict = {
+            0 : "2160p",
+            1 : "1080p",
+            2 : "720p",
+            3 : "480p",
+            4 : "240p"
+        }
+        if checked == True:
+            self.choice = col_dict.get(col)
 
+    def confirmed(self):
+        PopUp.accept()
+        return self.choice
 
 if __name__ == "__main__":
     import sys
