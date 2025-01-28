@@ -1,7 +1,7 @@
 from downloader import *
 from ph_popup import Ui_PopUp  
 from PyQt5 import QtCore, QtGui, QtWidgets
-import os, sys
+import os, sys , threading
 
 headers = {
     "User-Agent" : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"
@@ -10,7 +10,7 @@ headers = {
 url = ""
 path = ""
 
-class Ui_MainWindow(object):
+class Ui_MainWindow(object , QtCore.QObject):
     def __init__(self):
         self.url = ""
         self.path = ""
@@ -243,20 +243,24 @@ class Ui_MainWindow(object):
             self.path_input.setText("Invalid path")
             path = ""
 
-    def init_download(self):
-        self.download = ph_sys()
-
     def handle_start(self):
-        self.init_download()
+        self.download = ph_sys()
+        self.thread = threading.Thread(target=self.start_up)
+        self.thread.start()
+
+    def start_up(self):
+        global url, path
         if url != "" and path != "":
-            resp = self.download.connect(url , headers)
-            self.main , self.ph_name = self.download.parse(resp)
-        
-        if self.main != -1 and self.name != -1:
+            resp = self.download.connect(url, headers)
+            self.main, self.ph_name = self.download.parse(resp)
+            QtCore.QMetaObject.invokeMethod(self, "update_ui", QtCore.Qt.QueuedConnection)
+
+    @QtCore.pyqtSlot()
+    def update_ui(self):
+        if self.main != -1 and self.ph_name != -1:
             self.name.setPlainText(self.ph_name)
         else:
             self.status_info.setText("Connection Error, pls try again")
-
 
  
 
