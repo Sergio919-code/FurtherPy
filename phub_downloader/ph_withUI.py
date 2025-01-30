@@ -10,10 +10,7 @@ headers = {
 url = ""
 path = ""
 
-class Ui_MainWindow(object , QtCore.QObject):
-    def __init__(self):
-        self.url = ""
-        self.path = ""
+class Ui_MainWindow(object):
 
 
     def setupUi(self, MainWindow):
@@ -198,7 +195,7 @@ class Ui_MainWindow(object , QtCore.QObject):
         self.Welcome.setText(_translate("MainWindow", "Welcome!!!"))
         self.url_msg.setText(_translate("MainWindow", "Enter the url that has \"viewkey\" in it ->"))
         self.url_input.setStatusTip(_translate("MainWindow", "enter url"))
-        self.url_input.setPlaceholderText(_translate("MainWindow", "https://www.pornhub.com/view_video.php?viewkey="))
+        self.url_input.setPlaceholderText(_translate("MainWindow", "https://www.something.com/view_video.php?viewkey=")) ### need to replace back
         self.url_submit.setText(_translate("MainWindow", "Submit"))
         self.path_msg.setText(_translate("MainWindow", "Enter the path to save ->"))
         self.path_input.setPlaceholderText(_translate("MainWindow", "/path/to/download/folder/or/other/folder"))
@@ -244,62 +241,81 @@ class Ui_MainWindow(object , QtCore.QObject):
             path = ""
 
     def handle_start(self):
-        self.download = ph_sys()
-        self.thread = threading.Thread(target=self.start_up)
+        global url, headers
+        self.Worker = ph_sys()
+
+        self.thread = threading.Thread(target=self.Worker.connect ,args=(url , headers)) 
+        self.Worker.connect_finish.connect(lambda: threading.Thread(target=self.Worker.parse , args=(self.Worker.resp,)).start())
+
+        def func_in_func():
+            print("execution to inner func")
+            self.status_info.setText(f"HTTP {self.Worker.status_code} {'OK' if self.Worker.status_code == 200 else 'Connection Error'}")
+            self.name.setText(self.Worker.name)
+
+            quality_list = self.Worker.get_quality(self.Worker.main)
+
+            PopUp = Ui_PopUp(quality_list)
+            pop = Ui_PopUp(quality_list)
+            pop.setupUi(PopUp)
+
+            if PopUp.exec_() == QtWidgets.QDialog.Accepted:
+                return_value = pop.get_return_value() 
+                print(return_value + "get quality success")
+            self.user_choice = return_value
+
+        self.Worker.parse_finish.connect(func_in_func)
+
+        
         self.thread.start()
 
-    def start_up(self):
-        global url, path
-        if url != "" and path != "":
-            resp = self.download.connect(url, headers)
-            self.main, self.ph_name = self.download.parse(resp)
-            QtCore.QMetaObject.invokeMethod(self, "update_ui", QtCore.Qt.QueuedConnection)
+        
 
-    @QtCore.pyqtSlot()
-    def update_ui(self):
-        if self.main != -1 and self.ph_name != -1:
-            self.name.setPlainText(self.ph_name)
-        else:
-            self.status_info.setText("Connection Error, pls try again")
+
+
+
+
 
  
 
-def Clear_data():
-    global url, path
-    url , path = "" , ""
 
+class ph_sys(QtCore.QObject):
+    connect_finish = QtCore.pyqtSignal()
+    parse_finish = QtCore.pyqtSignal()
 
-class ph_sys:
     def __init__(self):
-        pass
+        super().__init__()
 
     def __str__(self):
         return "ph_sys"
 
     def connect(self, url:str, headers:dict):
-        x = connect(url, headers)
-        return x
-    
+        self.resp , self.status_code= connect(url, headers)
+        print("before executing emit")
+        self.connect_finish.emit()
+        print("executing connect finished\n")
+
+
+
     def parse(self, dict:dict):
-        main , name = parse(dict)
-        return main, name
+        self.main , self.name = parse(dict)
+        self.parse_finish.emit()
+ 
+
+
     
     def get_quality(self,main:dict):
-        return main.get("defaultQuality")
+        return main.get("defaultQuality") #list
+
+
 
 if __name__ == "__main__":
-    download = ph_sys()
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)  # Enable high-DPI scaling
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps)    # Scale images properly
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
     ui.setupUi(MainWindow)
-    MainWindow.show()
-
-
-
-    
-
-    
+    MainWindow.show()  
 
     sys.exit(app.exec_())
 
@@ -309,20 +325,3 @@ if __name__ == "__main__":
 
 
 
-if __name__ != "__main__":
-    import sys
-    app = QtWidgets.QApplication(sys.argv)
-    MainWindow = QtWidgets.QMainWindow()
-    ui = Ui_MainWindow()
-    ui.setupUi(MainWindow)
-    ###
-    PopUp = Ui_PopUp()
-    pop = Ui_PopUp()
-    pop.setupUi(PopUp)
-    MainWindow.show()###
-    if PopUp.exec_() == QtWidgets.QDialog.Accepted:
-        return_value = pop.get_return_value() 
-        print(return_value)
-    ###
-    
-    sys.exit(app.exec_())

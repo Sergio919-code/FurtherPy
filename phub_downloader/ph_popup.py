@@ -1,7 +1,23 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+quality_list = [1080 , 720]
+class Ui_PopUp(QtWidgets.QDialog):
+    def __init__(self, quality_list: list, parent = None):
+        super(Ui_PopUp, self).__init__(parent)
+        self.setupUi(self)
+        self.quality_list = quality_list
+        self.col_dict = {
+            0 : 2160,
+            1 : 1080,
+            2 : 720,
+            3 : 480,
+            4 : 240
+        }
+        self.choice = None
 
-class Ui_PopUp(object):
+    def closeEvent(self, event):
+        event.ignore()
+
     def setupUi(self, PopUp):
         self.PopUp = PopUp  # Store the PopUp instance
         PopUp.setObjectName("PopUp")
@@ -81,28 +97,34 @@ class Ui_PopUp(object):
         self.confirm_button.setText(_translate("PopUp", "Confirm"))
     
     def radio_button_toggled(self, checked:bool, col):
-        col_dict = {
-            0 : "2160p",
-            1 : "1080p",
-            2 : "720p",
-            3 : "480p",
-            4 : "240p"
-        }
         if checked == True:
-            self.choice = col_dict.get(col)
+            self.choice = self.col_dict.get(col)
+        
 
     def confirmed(self):
-        self.PopUp.accept()
+        if self.choice in self.col_dict.values() and self.choice in self.quality_list:
+            self.PopUp.accept()
+        else:
+            self.show_warning("Your choice is unavailable")
+        
         
     def get_return_value(self):
         return self.choice
+    
+    def show_warning(self, text:str):
+        msg = QtWidgets.QMessageBox()
+        msg.setIcon(QtWidgets.QMessageBox.Warning)
+        msg.setWindowTitle("Warning")
+        msg.setText(text)
+        msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        msg.exec_()
     
 
 if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
-    PopUp = QtWidgets.QDialog()
-    ui = Ui_PopUp()
+    PopUp = Ui_PopUp(quality_list)
+    ui = Ui_PopUp(quality_list)
     ui.setupUi(PopUp)
     PopUp.show()
     sys.exit(app.exec_())
