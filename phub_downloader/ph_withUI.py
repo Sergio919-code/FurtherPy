@@ -108,6 +108,7 @@ class Ui_MainWindow(object):
         self.progressBar.setGeometry(QtCore.QRect(400, 310, 381, 20))
         self.progressBar.setProperty("value", 0)
         self.progressBar.setObjectName("progressBar")
+        self.progressBar.hide() ### HIDE
 
         ### msg
         self.Progress_msg = QtWidgets.QLabel(self.centralwidget)
@@ -117,6 +118,7 @@ class Ui_MainWindow(object):
         font.setPointSize(26)
         self.Progress_msg.setFont(font)
         self.Progress_msg.setObjectName("Progress_msg")
+        self.Progress_msg.hide() ### HIDE progress
 
         self.name = QtWidgets.QTextEdit(self.centralwidget)     ### text edit
         self.name.setGeometry(QtCore.QRect(20, 290, 371, 61))
@@ -136,11 +138,15 @@ class Ui_MainWindow(object):
         self.name.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContents)
         self.name.setReadOnly(True)
         self.name.setObjectName("name")
+        self.name.setStyleSheet("background-color: transparent; color: black;") ### HIDE bg
+        self.name.hide() #HIDE
 
         ### msg
         self.status_msg = QtWidgets.QLabel(self.centralwidget)
         self.status_msg.setGeometry(QtCore.QRect(20, 220, 141, 41))
         self.status_msg.setObjectName("status_msg")
+        self.status_msg.hide() ###HIDE
+        
 
 
         self.status_info = QtWidgets.QLineEdit(self.centralwidget)      ### line edit status
@@ -150,6 +156,8 @@ class Ui_MainWindow(object):
         self.status_info.setFont(font)
         self.status_info.setReadOnly(True)
         self.status_info.setObjectName("status_info")
+        self.status_info.hide()     #HIDE
+        self.status_info.setStyleSheet("background-color: transparent; color: black;")
 
         ### msg
         self.finisher = QtWidgets.QLabel(self.centralwidget)
@@ -158,6 +166,7 @@ class Ui_MainWindow(object):
         font.setPointSize(26)
         self.finisher.setFont(font)
         self.finisher.setObjectName("finisher")
+        self.finisher.hide() #HIDE
 
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
@@ -185,6 +194,7 @@ class Ui_MainWindow(object):
         self.menuSetting.addAction(self.actionfix_save_dir)
         self.menubar.addAction(self.menuoption.menuAction())
         self.menubar.addAction(self.menuSetting.menuAction())
+
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
@@ -244,12 +254,18 @@ class Ui_MainWindow(object):
         global url, headers
         self.Worker = ph_sys()
 
+        self.Progress_msg.show()
+        self.status_msg.show()
+        self.status_info.show()
+        self.name.show()
+        self.progressBar.show()
+
         self.thread = threading.Thread(target=self.Worker.connect ,args=(url , headers)) 
         self.Worker.connect_finish.connect(lambda: threading.Thread(target=self.Worker.parse , args=(self.Worker.resp,)).start())
 
         def func_in_func():
             print("execution to inner func")
-            self.status_info.setText(f"HTTP {self.Worker.status_code} {'OK' if self.Worker.status_code == 200 else 'Connection Error'}")
+            self.status_info.setText(f"HTTP {self.Worker.status_code} {'OK' if self.Worker.status_code == 200 else "CONNECTION ERROR"}")
             self.name.setText(self.Worker.name)
 
             quality_list = self.Worker.get_quality(self.Worker.main)
@@ -261,11 +277,9 @@ class Ui_MainWindow(object):
             if PopUp.exec_() == QtWidgets.QDialog.Accepted:
                 return_value = pop.get_return_value() 
                 print(return_value + "get quality success")
-            self.user_choice = return_value
+            self.Worker.user_choice = return_value
 
-        self.Worker.parse_finish.connect(func_in_func)
-
-        
+        self.Worker.parse_finish.connect(func_in_func)        
         self.thread.start()
 
         
@@ -284,6 +298,7 @@ class ph_sys(QtCore.QObject):
 
     def __init__(self):
         super().__init__()
+        self.user_choice = None
 
     def __str__(self):
         return "ph_sys"
@@ -299,12 +314,12 @@ class ph_sys(QtCore.QObject):
     def parse(self, dict:dict):
         self.main , self.name = parse(dict)
         self.parse_finish.emit()
- 
 
-
-    
     def get_quality(self,main:dict):
         return main.get("defaultQuality") #list
+    
+    def get_master(self, main:dict, choice:int , headers:dict ):
+        pass
 
 
 
