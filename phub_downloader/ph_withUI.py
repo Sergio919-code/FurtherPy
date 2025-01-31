@@ -12,7 +12,6 @@ path = ""
 
 class Ui_MainWindow(object):
 
-
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(800, 586)
@@ -252,6 +251,8 @@ class Ui_MainWindow(object):
 
     def handle_start(self):
         global url, headers
+        if url == "" or path == "":
+            return
         self.Worker = ph_sys()
 
         self.Progress_msg.show()
@@ -262,8 +263,10 @@ class Ui_MainWindow(object):
 
         self.thread = threading.Thread(target=self.Worker.connect ,args=(url , headers)) 
         self.Worker.connect_finish.connect(lambda: threading.Thread(target=self.Worker.parse , args=(self.Worker.resp,)).start())
+        self.Worker.connect_fail.connect(lambda: self.status_info.setText("Connection failed"))
 
         def func_in_func():
+
             print("execution to inner func")
             self.status_info.setText(f"HTTP {self.Worker.status_code} {'OK' if self.Worker.status_code == 200 else "CONNECTION ERROR"}")
             self.name.setText(self.Worker.name)
@@ -276,25 +279,57 @@ class Ui_MainWindow(object):
 
             if PopUp.exec_() == QtWidgets.QDialog.Accepted:
                 return_value = pop.get_return_value() 
-                print(return_value + "get quality success")
+                print(str(return_value) + "get quality success")
             self.Worker.user_choice = return_value
 
+            QtCore.QTimer.singleShot(0 , intermediate)
+
+        def intermediate():
+            threading.Thread(target=self.starter).start()
+            self.Worker.total_length.connect(lambda value: self.progressBar.setMaximum(value + 1))
+            self.Worker.update_progress.connect(lambda i: self.increase_progress(i))
+            self.Worker.all_finish.connect(self.when_finished)
+            self.Worker.update_playlist.connect(lambda: self.status_info.setText("Get playlist success"))
+            self.Worker.get_master_fail.connect(lambda string: self.status_info.setText(string))
+            self.Worker.get_playlist_fail.connect(lambda string: self.status_info.setText(string))
+
         self.Worker.parse_finish.connect(func_in_func)        
-        self.thread.start()
+        self.thread.start() ### starter
 
+
+    def when_finished(self):
+        self.progressBar.setValue(self.progressBar.maximum())
+        self.finisher.show()
         
+        
+    def increase_progress(self , max:int):
+        current = self.progressBar.value()
+        if current < max:
+            self.progressBar.setValue(current + 1)
+
+    def starter(self):
+        global headers, path
+        self.Worker.get_master(self.Worker.main, self.Worker.user_choice, headers)
+        self.Worker.get_playlist(self.Worker.master , self.Worker.base , headers)
+        print(f"choice: {self.Worker.user_choice}")
+        self.Worker.save_video(self.Worker.playlist , self.Worker.base , headers , path, self.Worker.name)
 
 
 
-
-
-
- 
 
 
 class ph_sys(QtCore.QObject):
     connect_finish = QtCore.pyqtSignal()
+    connect_fail = QtCore.pyqtSignal()
     parse_finish = QtCore.pyqtSignal()
+    update_progress = QtCore.pyqtSignal(int)
+    all_finish = QtCore.pyqtSignal()
+    total_length = QtCore.pyqtSignal(int)
+    update_playlist = QtCore.pyqtSignal()
+    get_master_fail = QtCore.pyqtSignal(str)
+    get_playlist_fail = QtCore.pyqtSignal(str)
+
+
 
     def __init__(self):
         super().__init__()
@@ -304,23 +339,128 @@ class ph_sys(QtCore.QObject):
         return "ph_sys"
 
     def connect(self, url:str, headers:dict):
-        self.resp , self.status_code= connect(url, headers)
-        print("before executing emit")
+        global session
+        index = 1
+        try:
+            while index <= 10:
+                try:
+                    session = requests.session()
+                    session.headers.update(headers)
+                    resp = session.get(url, headers=headers)
+                    if resp.status_code == 200:
+                        break
+                except requests.exceptions.ConnectionError as e:
+                    print(f'Error: {e}, Tried times: {index}')
+                
+                index += 1
+        except:
+            self.connect_fail.emit()
+            return
+        self.resp , self.status_code= resp.text , resp.status_code
         self.connect_finish.emit()
-        print("executing connect finished\n")
-
-
 
     def parse(self, dict:dict):
         self.main , self.name = parse(dict)
         self.parse_finish.emit()
 
     def get_quality(self,main:dict):
-        return main.get("defaultQuality") #list
+        medialist = main.get("mediaDefinitions")
+        r_list = []
+        for dict in medialist:
+            r_list.append(dict.get("quality"))
+        r_list.remove([])
+        
+        return [int(value) for value in r_list] #list 
     
     def get_master(self, main:dict, choice:int , headers:dict ):
-        pass
+        global session 
+        mediaDef = main["mediaDefinitions"]
+        try:
+            for medias in mediaDef:
+                if medias["quality"] == str(choice):
+                    master_url = medias["videoUrl"]
+                    base = (master_url.split("/master.m3u8"))[0]
+        except Exception as e:
+            print(f"Upper part Error: {e}")
+            return 
+        ###
+        try:
+            index = 1
+            while index <= 5:
+                try:
+                    resp = session.get(master_url , headers=headers)
+                    print("Everything good in get_master() func:)")
+                    break
+                except requests.exceptions.ConnectionError:
+                    print("Connection Error")
+                    index += 1
+        except Exception as e:
+            print(f"get_master: {e}")
+            self.get_master_fail.emit(f"Error: {e}")
+            return 
+        self.master , self.base = resp.text, base
 
+
+    def get_playlist(self , txt:str , base:str , headers):
+        global session
+        parts = txt.split("\n")
+        for part in parts:
+            if "m3u8" in part:
+                url_parts = part
+        url = base +'/' + url_parts
+        ###
+        try:
+            resp = session.get(url , headers=headers)
+            resp.encoding="utf-8"
+            print("Everything good in get_playlist() func:)")
+        except requests.exceptions.ConnectionError as e:
+            print("Connection Error")
+            self.get_playlist_fail.emit(f"Error: {e}")
+            return 
+        self.playlist = resp.text
+        self.update_playlist.emit()
+
+
+    def save_video(self, txt:str, base:str, headers:dict, path:str, name:str):
+            global session
+            not_playlist = txt.split("\n")
+            playlist = [(base + "/" + url) for url in not_playlist if "seg" in url]
+            self.total_length.emit(len(playlist))
+
+            def get_ts(url, headers):
+                global session
+                trials = 1
+                while trials <= 5:
+                    try:
+                        ts = session.get(url, headers=headers, stream=True)
+                        if ts.status_code == 200:
+                            return ts
+                    except requests.exceptions.ConnectionError:
+                        trials += 1
+                        print("Connection error, retrying...")
+                return None
+
+            Invalid_char = ["<" , ">" , ":" , "\"" , "/" , "\\" , "|" , "?" , "*"]
+            for char in name:
+                if char in Invalid_char:
+                    name = name.replace(char , "_")
+            path += fr"\{name}.mp4"
+                
+            open(path , "wb").close()
+            
+            with open(path, "ab") as video:
+                for i , url in enumerate(playlist):
+                    ts = get_ts(url, headers)
+                    if ts:
+                        for chunk in ts.iter_content(chunk_size=4096):
+                            if chunk:
+                                video.write(chunk)
+                        self.update_progress.emit(i)
+                    else:
+                        print(f"Failed to download segment: {url}")
+                        return
+            self.all_finish.emit()
+            print("Video saved successfully.")
 
 
 if __name__ == "__main__":

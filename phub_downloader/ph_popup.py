@@ -91,7 +91,7 @@ class Ui_PopUp(QtWidgets.QDialog):
         item = self.Quality_list.horizontalHeaderItem(2)
         item.setText(_translate("PopUp", "720p"))
         item = self.Quality_list.horizontalHeaderItem(3)
-        item.setText(_translate("PopUp", "360p"))
+        item.setText(_translate("PopUp", "480p"))
         item = self.Quality_list.horizontalHeaderItem(4)
         item.setText(_translate("PopUp", "240p"))
         self.confirm_button.setText(_translate("PopUp", "Confirm"))
